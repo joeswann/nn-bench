@@ -1,11 +1,11 @@
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from trainer import Trainer
+from utils.trainer import Trainer
 import argparse
-from network_gru import GRUNetwork
-from network_ltsm import LSTMNetwork
-from network_ltc import LiquidTimeConstantNetwork, ODESolver
+from models.gru_network import GRUNetwork
+from models.lstm_network import LSTMNetwork
+from models.ltc_network import LiquidTimeConstantNetwork, ODESolver
 
 def load_data(dataset):
     return dataset.get_data()
@@ -53,15 +53,15 @@ def create_trainer(model, dataloader, criterion, optimizer, device, num_epochs, 
 
 def train_model(args):
     if args.dataset == "text":
-        from dataset_text import TextDataset
+        from datasets.text_dataset import TextDataset
         dataset = TextDataset()
         use_embedding = True
     elif args.dataset == "timeseries":
-        from dataset_timeseries import TimeSeriesData
+        from datasets.timeseries_dataset import TimeSeriesData
         dataset = TimeSeriesData()
         use_embedding = False
     elif args.dataset == "toy":
-        from dataset_toy import ToyData
+        from datasets.toy_dataset import ToyData
         dataset = ToyData()
         use_embedding = True
     else:

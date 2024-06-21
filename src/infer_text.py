@@ -28,7 +28,7 @@ def generate_text(model, tokenizer, seed_text, max_length=50):
     return generated_text
 
 if __name__ == "__main__":
-    model_path = "models/ltc_model_text.pt"
+    model_path = "models/models_ltc_text.pt"
     dataset = TextDataset()
     tokenizer = dataset.tokenizer
     

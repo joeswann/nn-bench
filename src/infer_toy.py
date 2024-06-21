@@ -42,7 +42,7 @@ def test_accuracy(model, dataset):
     return accuracy
 
 if __name__ == "__main__":
-    model_path = "ltc_model_toy.pt"
+    model_path = "model_ltc_toy.pt"
     dataset = ToyData()
     
     model = load_model(model_path, dataset.input_size, hidden_size=32, output_size=dataset.output_size)

@@ -14,15 +14,18 @@ download-nltk-data:
 
 # Train the model
 train:
-	$(PYTHON) train.py --dataset $(dataset) --network $(network) --save_path models/model_$(network)_$(dataset).pt
+	$(PYTHON) src/train.py --dataset $(dataset) --network $(network) --save_path models/model_$(network)_$(dataset).pt
 
 # Run inference on the model
 run:
-	$(PYTHON) run_$(dataset).py --network $(network)
+	$(PYTHON) src/infer_$(dataset).py --network $(network)
 
 # Clean up generated files
 clean:
-	rm -rf __pycache__
+	rm -rf src/__pycache__
+	rm -rf src/datasets/__pycache__
+	rm -rf src/models/__pycache__
+	rm -rf src/utils/__pycache__
 	rm -f models/*.pt
 
 # Create the models directory

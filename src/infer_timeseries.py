@@ -24,7 +24,7 @@ def predict_next_steps(model, initial_sequence, num_steps=50):
     return np.array(predictions)
 
 if __name__ == "__main__":
-    model_path = "models/ltc_model_timeseries.pt"
+    model_path = "models/model_ltc_timeseries.pt"
     dataset = TimeSeriesData()
     
     model = load_model(model_path, dataset.input_size, hidden_size=32, output_size=dataset.output_size)
