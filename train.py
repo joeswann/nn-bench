@@ -1,242 +1,136 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
-from datasets import load_dataset
-from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
-from enum import Enum
+from trainer import Trainer
+import argparse
+from network_gru import GRUNetwork
+from network_ltsm import LSTMNetwork
+from network_ltc import LiquidTimeConstantNetwork, ODESolver
 
-class ODESolver(Enum):
-    SemiImplicit = 0
-    Explicit = 1
-    RungeKutta = 2
+def load_data(dataset):
+    return dataset.get_data()
 
-class LiquidTimeConstantNetwork(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, steps, step_size, solver=ODESolver.SemiImplicit, adaptive=True):
-        super(LiquidTimeConstantNetwork, self).__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-        self.steps = steps
-        self.step_size = step_size
-        self.solver = solver
-        self.adaptive = adaptive
-        self.embedding = nn.Embedding(input_size, hidden_size)
-        
-        self.weights = nn.Linear(input_size, hidden_size)
-        self.recurrent_weights = nn.Linear(hidden_size, hidden_size)
-        self.output_layer = nn.Linear(hidden_size, output_size)
-        self.time_constant = nn.Parameter(torch.empty(hidden_size))
-        if adaptive:
-            self.adaptive_weights = nn.Linear(hidden_size, hidden_size)
-        
-        self.reset_parameters()
-        
-    def reset_parameters(self):
-        nn.init.xavier_uniform_(self.weights.weight)
-        nn.init.xavier_uniform_(self.recurrent_weights.weight)
-        nn.init.xavier_uniform_(self.output_layer.weight)
-        nn.init.uniform_(self.time_constant, -1, 1)
-        if self.adaptive:
-            nn.init.xavier_uniform_(self.adaptive_weights.weight)
-        
-    def forward(self, input_sequence):
-        batch_size, seq_length = input_sequence.size()
-        input_embeddings = self.embedding(input_sequence)
+def create_model(input_size, hidden_size, output_size, hyperparams, use_embedding, network):
+    if network == 'ltc':
+        steps = hyperparams['steps']
+        step_size = hyperparams['step_size']
+        solver = ODESolver[hyperparams['solver']]
+        adaptive = hyperparams['adaptive']
+        model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps, step_size, solver, adaptive, use_embedding)
+    elif network == 'gru':
+        num_layers = hyperparams['num_layers']
+        model = GRUNetwork(input_size, hidden_size, output_size, num_layers, use_embedding)
+    elif network == 'lstm':
+        num_layers = hyperparams['num_layers']
+        model = LSTMNetwork(input_size, hidden_size, output_size, num_layers, use_embedding)
+    else:
+        raise ValueError(f"Unknown network architecture: {network}")
+    return model
 
-        hidden_states = []
-        hidden_state = torch.zeros(batch_size, self.hidden_size).to(input_sequence.device)
-        
-        for t in range(seq_length):
-            input_t = input_embeddings[:, t]
-            hidden_state = self.fused_solver(hidden_state, input_t)
-            hidden_states.append(hidden_state)
-        
-        hidden_states = torch.stack(hidden_states, dim=1)
-        output = self.output_layer(hidden_states)
-        return output
+def get_hyperparams(dataset, network):
+    default_hyperparams = {}
     
-    def ltc_ode(self, hidden_state, input_t):
-        S = input_t + self.recurrent_weights(hidden_state)
-        if self.adaptive:
-            time_varying_constant = self.time_constant * torch.tanh(S + self.adaptive_weights(hidden_state))
-        else:
-            time_varying_constant = self.time_constant * torch.tanh(S)
-        d_hidden_state = (S - hidden_state) / time_varying_constant
-        return d_hidden_state
+    if network == 'ltc':
+        default_hyperparams = {
+            'steps': 5,
+            'step_size': 0.01,
+            'solver': 'SemiImplicit',
+            'adaptive': True
+        }
+    elif network in ['gru', 'lstm']:
+        default_hyperparams = {
+            'num_layers': 1
+        }
     
-    def fused_solver(self, hidden_state, input_t):
-        input_t = input_t.float()  # Convert input_t to Float
-        if self.solver == ODESolver.Explicit:
-            return self._ode_step_explicit(hidden_state, input_t)
-        elif self.solver == ODESolver.SemiImplicit:
-            return self._ode_step(hidden_state, input_t)
-        elif self.solver == ODESolver.RungeKutta:
-            return self._ode_step_runge_kutta(hidden_state, input_t)
-        else:
-            raise ValueError(f"Unknown ODE solver '{self.solver}'")
+    if hasattr(dataset, 'get_hyperparams'):
+        dataset_hyperparams = dataset.get_hyperparams()
+        default_hyperparams.update(dataset_hyperparams)
     
-    def _ode_step(self, hidden_state, input_t):
-        for _ in range(self.steps):
-            d_hidden_state = self.ltc_ode(hidden_state, input_t.float())
-            hidden_state = hidden_state + self.step_size * d_hidden_state
-        return hidden_state
+    return default_hyperparams
+
+def create_trainer(model, dataloader, criterion, optimizer, device, num_epochs, gradient_clip):
+    return Trainer(model, dataloader, criterion, optimizer, device, num_epochs, gradient_clip)
+
+def train_model(args):
+    if args.dataset == "text":
+        from dataset_text import TextDataset
+        dataset = TextDataset()
+        use_embedding = True
+    elif args.dataset == "timeseries":
+        from dataset_timeseries import TimeSeriesData
+        dataset = TimeSeriesData()
+        use_embedding = False
+    elif args.dataset == "toy":
+        from dataset_toy import ToyData
+        dataset = ToyData()
+        use_embedding = True
+    else:
+        raise ValueError(f"Unknown dataset: {args.dataset}")
+
+    data_info = load_data(dataset)
+    if isinstance(data_info, tuple) and len(data_info) == 3:
+        data, input_size, output_size = data_info
+    else:
+        data = data_info
+        input_size = dataset.input_size
+        output_size = dataset.output_size
     
-    def _ode_step_runge_kutta(self, hidden_state, input_t):
-        for _ in range(self.steps):
-            k1 = self.step_size * self.ltc_ode(hidden_state, input_t)
-            k2 = self.step_size * self.ltc_ode(hidden_state + k1 * 0.5, input_t)
-            k3 = self.step_size * self.ltc_ode(hidden_state + k2 * 0.5, input_t)
-            k4 = self.step_size * self.ltc_ode(hidden_state + k3, input_t)
-            hidden_state = hidden_state + (k1 + 2 * k2 + 2 * k3 + k4) / 6
-        return hidden_state
+    dataloader = DataLoader(data, batch_size=32, shuffle=True)
     
-    def _ode_step_explicit(self, hidden_state, input_t):
-        for _ in range(self.steps):
-            d_hidden_state = self.ltc_ode(hidden_state, input_t)
-            hidden_state = hidden_state + self.step_size * d_hidden_state
-        return hidden_state
-
-def train_ltc(model, inputs, targets, epochs, learning_rate, gradient_clip=1.0, save_path='ltc_model.pt'):
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = nn.MSELoss()
-
-    for epoch in range(epochs):
-        total_loss = 0
-        for input_seq, target_seq in zip(inputs, targets):
-            optimizer.zero_grad()
-            output_seq = model(input_seq)
-            loss = criterion(output_seq, target_seq)
-            loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-            optimizer.step()
-            total_loss += loss.item()
-        print(f'Epoch {epoch+1}, Loss: {total_loss/len(inputs)}')
+    hyperparams = get_hyperparams(dataset, args.network)
+    model = create_model(input_size, args.hidden_size, output_size, hyperparams, use_embedding, args.network)
     
-    torch.save(model.state_dict(), save_path)
+    criterion = dataset.get_criterion()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # Reduced learning rate
+    
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    trainer = create_trainer(model, dataloader, criterion, optimizer, device, args.num_epochs, args.gradient_clip)
+    
+    print(f"Model architecture:\n{model}")
+    print(f"Optimizer: {optimizer}")
+    print(f"Criterion: {criterion}")
+    print(f"Device: {device}")
+    
+    trainer.train()
+    
+    torch.save(model.state_dict(), args.save_path)
+    print(f"Model saved to {args.save_path}")
+    
+    return model, dataset
 
-# Example usage
-hidden_size = 32
-steps = 5
-step_size = 0.01
-learning_rate = 0.001
-num_epochs = 10
-epochs = 50
-gradient_clip = 1.0
-save_path = 'ltc_model.pt'
-
-
-# # Generate random input and target sequences
-# batch_size = 32
-# seq_length = 20
-# inputs = [torch.randn(batch_size, seq_length, input_size) for _ in range(100)]
-# targets = [torch.randn(batch_size, output_size) for _ in range(100)]
-#
-# train_ltc(model, inputs, targets, epochs, learning_rate, gradient_clip, save_path)
-
-
-
-
-# Load the dataset and tokenize
-dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
-
-def tokenize(examples):
-    return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=128)
-
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-tokenized_dataset = dataset.map(tokenize, batched=True, num_proc=4, remove_columns=["text"])
-
-# Convert dataset to PyTorch DataLoader
-tokenized_dataset.set_format(type='torch', columns=['input_ids'])
-dataloader = DataLoader(tokenized_dataset, batch_size=32, shuffle=True)
-
-# Create the model
-input_size = len(tokenizer.vocab)
-output_size = len(tokenizer.vocab)
-hidden_size = 32
-steps = 5
-step_size = 0.01
-learning_rate = 0.001
-num_epochs = 10
-gradient_clip = 1.0
-save_path = 'ltc_model.pt'
-model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps, step_size, solver=ODESolver.SemiImplicit, adaptive=True)
-
-
-# Load the dataset and tokenize
-dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
-
-def tokenize(examples):
-    return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=128)
-
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-tokenized_dataset = dataset.map(tokenize, batched=True, num_proc=4, remove_columns=["text"])
-
-# Convert dataset to PyTorch DataLoader
-tokenized_dataset.set_format(type='torch', columns=['input_ids'])
-dataloader = DataLoader(tokenized_dataset, batch_size=32, shuffle=True)
-
-# Create the model
-input_size = len(tokenizer.vocab)
-output_size = len(tokenizer.vocab)
-hidden_size = 32
-steps = 5
-step_size = 0.01
-learning_rate = 0.001
-num_epochs = 10
-gradient_clip = 1.0
-save_path = 'ltc_model.pt'
-model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps, step_size, solver=ODESolver.SemiImplicit, adaptive=True)
-
-# Define the loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-# Training loop
-for epoch in range(num_epochs):
+def test_model(model, dataset, device='cpu'):
+    model.eval()
+    data_info = load_data(dataset)
+    if isinstance(data_info, tuple) and len(data_info) == 3:
+        data, _, _ = data_info
+    else:
+        data = data_info
+    
+    dataloader = DataLoader(data, batch_size=32, shuffle=False)
+    criterion = dataset.get_criterion()
     total_loss = 0
-    for batch in dataloader:
-        input_ids = batch["input_ids"].long()
-        
-        # Forward pass
-        outputs = model(input_ids)
-        
-        # Reshape outputs to (batch_size * seq_length, output_size)
-        outputs = outputs.view(-1, output_size)
-        # Reshape input_ids to (batch_size * seq_length)
-        input_ids = input_ids.view(-1)
-        
-        if outputs.size(0) != input_ids.size(0):
-            raise ValueError(f"Mismatch in output and input size: {outputs.size(0)} vs {input_ids.size(0)}")
-        
-        # Compute the loss
-        loss = criterion(outputs, input_ids)
-        
-        # Backward pass and optimization
-        optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-        optimizer.step()
-        
-        total_loss += loss.item()
     
-    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(dataloader):.4f}")
+    with torch.no_grad():
+        for batch in dataloader:
+            inputs = batch['input'].to(device)
+            targets = batch['target'].to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs.view(-1, outputs.size(-1)), targets.view(-1))
+            total_loss += loss.item()
+    
+    avg_loss = total_loss / len(dataloader)
+    print(f"Test Loss: {avg_loss:.4f}")
+    return avg_loss
 
-# Save the final model weights
-torch.save(model.state_dict(), save_path)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train Network")
+    parser.add_argument("--dataset", choices=["text", "timeseries", "toy"], required=True, help="Dataset to use")
+    parser.add_argument("--network", choices=["ltc", "gru", "lstm"], default="ltc", help="Network architecture to use")
+    parser.add_argument("--hidden_size", type=int, default=32, help="Hidden size of the network")
+    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs")
+    parser.add_argument("--gradient_clip", type=float, default=1.0, help="Gradient clipping value")
+    parser.add_argument("--save_path", required=True, help="Path to save the trained model")
+    args = parser.parse_args()
 
-# Generate text using the trained model
-generated_text = []
-seed_text = "The quick brown fox"
-input_sequence = tokenizer.encode(seed_text, return_tensors="pt")
-
-for _ in range(100):  # Generate 100 words
-    outputs = model(input_sequence)
-    word_probs = torch.softmax(outputs[:, -1, :], dim=1)
-    word_idx = torch.multinomial(word_probs, num_samples=1).item()
-    input_sequence = torch.cat([input_sequence, torch.tensor([[word_idx]])], dim=1)
-    generated_text.append(word_idx)
-
-generated_text = tokenizer.decode(generated_text)
-print("Generated Text:")
-print(generated_text)
+    model, dataset = train_model(args)
+    test_model(model, dataset)

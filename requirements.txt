@@ -1,4 +1,8 @@
-liquidnet
 torch
 datasets
 transformers
+numpy
+pandas
+yfinance
+nltk
+scikit-learn
