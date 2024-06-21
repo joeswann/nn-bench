@@ -1,14 +1,18 @@
-# LTC-TextGen
+# Time Series Forecasting with LTC, GRU, and LSTM Networks
 
-This repository contains an implementation of the Liquid Time Constant Network (LTC Network), a recurrent neural network architecture based on ordinary differential equations (ODEs). The LTC Network is designed to model sequential data and capture long-term dependencies.
+This repository contains implementations of the Liquid Time Constant (LTC) Network, Gated Recurrent Unit (GRU) Network, and Long Short-Term Memory (LSTM) Network for modeling sequential data and capturing long-term dependencies. The project includes scripts for training and evaluating these networks on various datasets, including text, time series, and toy data.
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Model Architecture](#model-architecture)
-- [Training](#training)
-- [Text Generation](#text-generation)
+  - [Training](#training)
+  - [Inference](#inference)
+- [Datasets](#datasets)
+- [Network Architectures](#network-architectures)
+  - [LTC Network](#ltc-network)
+  - [GRU Network](#gru-network)
+  - [LSTM Network](#lstm-network)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -24,43 +28,59 @@ This will install the necessary Python packages listed in the `requirements.txt`
 
 ## Usage
 
-To train the LTC Network, use the following command:
+### Training
+
+To train a model, use the following command:
 
 ```
-make run
+make train dataset=<dataset> network=<network>
 ```
 
-## Model Architecture
+Replace `<dataset>` with the desired dataset (`text`, `timeseries`, or `toy`) and `<network>` with the desired network architecture (`ltc`, `gru`, or `lstm`).
 
-The LTC Network is implemented in the `LiquidTimeConstantNetwork` class. It consists of an embedding layer, a recurrent layer with adaptive time constants, and an output layer. The recurrent layer is based on ODEs and supports different ODE solvers, including semi-implicit, explicit, and Runge-Kutta methods.
+For example, to train an LTC network on the time series dataset, run:
 
-The key components of the LTC Network are:
+```
+make train dataset=timeseries network=ltc
+```
 
-- `input_size`: The size of the input vocabulary.
-- `hidden_size`: The size of the hidden state.
-- `output_size`: The size of the output vocabulary.
-- `steps`: The number of ODE steps per input time step.
-- `step_size`: The size of each ODE step.
-- `solver`: The ODE solver to use (semi-implicit, explicit, or Runge-Kutta).
-- `adaptive`: Whether to use adaptive time constants.
+### Inference
 
-## Training
+To run inference on a trained model, use the following command:
 
-The `train.py` script demonstrates how to train the LTC Network on the WikiText-2 dataset. The dataset is loaded using the HuggingFace Datasets library and tokenized using the BERT tokenizer.
+```
+make run dataset=<dataset> network=<network>
+```
 
-The training process involves the following steps:
+Replace `<dataset>` with the dataset used during training and `<network>` with the network architecture of the trained model.
 
-1. Load and tokenize the dataset.
-2. Create the LTC Network model.
-3. Define the loss function and optimizer.
-4. Train the model for a specified number of epochs.
-5. Save the trained model weights.
+For example, to run inference on a trained GRU network for the text dataset, run:
 
-## Text Generation
+```
+make run dataset=text network=gru
+```
 
-The `run.py` script demonstrates how to use a pre-trained LTC Network model to generate text. It loads the saved model weights and generates text based on a given seed text.
+## Datasets
 
-The generated text is obtained by sampling from the model's output probability distribution at each time step.
+The project supports the following datasets:
+
+- `text`: The WikiText-2 dataset for language modeling.
+- `timeseries`: A custom time series dataset based on stock prices and sentiment analysis.
+- `toy`: A synthetic toy dataset generated from a sine wave with added noise.
+
+## Network Architectures
+
+### LTC Network
+
+The LTC Network is implemented in the `LiquidTimeConstantNetwork` class. It consists of an embedding layer, a recurrent layer with adaptive time constants, and an output layer. The recurrent layer is based on ordinary differential equations (ODEs) and supports different ODE solvers, including semi-implicit, explicit, and Runge-Kutta methods.
+
+### GRU Network
+
+The GRU Network is implemented in the `GRUNetwork` class. It consists of an embedding layer (optional), a stack of GRU layers, and an output layer. The number of GRU layers can be specified using the `num_layers` hyperparameter.
+
+### LSTM Network
+
+The LSTM Network is implemented in the `LSTMNetwork` class. It consists of an embedding layer (optional), a stack of LSTM layers, and an output layer. The number of LSTM layers can be specified using the `num_layers` hyperparameter.
 
 ## Contributing
 
