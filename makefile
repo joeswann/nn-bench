@@ -18,7 +18,7 @@ train:
 
 # Run inference on the model
 run:
-	$(PYTHON) src/infer_$(dataset).py --network $(network)
+	$(PYTHON) src/infer_$(dataset).py --model_type $(network)
 
 # Clean up generated files
 clean:
@@ -27,6 +27,7 @@ clean:
 	rm -rf src/models/__pycache__
 	rm -rf src/utils/__pycache__
 	rm -f models/*.pt
+	rm -f *.png
 
 # Create the models directory
 create-models-dir:
@@ -49,3 +50,39 @@ help:
 
 # Ensure the models directory exists before training or running
 train run: | create-models-dir
+
+# Define targets for training all networks on all datasets
+train-all: train-text train-timeseries train-toy
+
+train-text: create-models-dir
+	$(MAKE) train dataset=text network=ltc
+	$(MAKE) train dataset=text network=gru
+	$(MAKE) train dataset=text network=lstm
+
+train-timeseries: create-models-dir
+	$(MAKE) train dataset=timeseries network=ltc
+	$(MAKE) train dataset=timeseries network=gru
+	$(MAKE) train dataset=timeseries network=lstm
+
+train-toy: create-models-dir
+	$(MAKE) train dataset=toy network=ltc
+	$(MAKE) train dataset=toy network=gru
+	$(MAKE) train dataset=toy network=lstm
+
+# Define targets for running inference on all networks for all datasets
+run-all: run-text run-timeseries run-toy
+
+run-text:
+	$(MAKE) run dataset=text network=ltc
+	$(MAKE) run dataset=text network=gru
+	$(MAKE) run dataset=text network=lstm
+
+run-timeseries:
+	$(MAKE) run dataset=timeseries network=ltc
+	$(MAKE) run dataset=timeseries network=gru
+	$(MAKE) run dataset=timeseries network=lstm
+
+run-toy:
+	$(MAKE) run dataset=toy network=ltc
+	$(MAKE) run dataset=toy network=gru
+	$(MAKE) run dataset=toy network=lstm

@@ -14,7 +14,7 @@ def create_model(input_size, hidden_size, output_size, hyperparams, use_embeddin
     if network == 'ltc':
         steps = hyperparams['steps']
         step_size = hyperparams['step_size']
-        solver = ODESolver[hyperparams['solver']]
+        solver = hyperparams['solver']
         adaptive = hyperparams['adaptive']
         model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps, step_size, solver, adaptive, use_embedding)
     elif network == 'gru':
@@ -115,7 +115,12 @@ def test_model(model, dataset, device='cpu'):
             inputs = batch['input'].to(device)
             targets = batch['target'].to(device)
             outputs = model(inputs)
-            loss = criterion(outputs.view(-1, outputs.size(-1)), targets.view(-1))
+
+            # Reshape the tensors to match sizes
+            outputs = outputs.view(-1, outputs.size(-1))
+            targets = targets.view(-1, targets.size(-1))
+
+            loss = criterion(outputs, targets)
             total_loss += loss.item()
     
     avg_loss = total_loss / len(dataloader)

@@ -1,11 +1,24 @@
+import argparse
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from network_ltc import LiquidTimeConstantNetwork
-from dataset_timeseries import TimeSeriesData
+from models.ltc_network import LiquidTimeConstantNetwork
+from models.gru_network import GRUNetwork
+from models.lstm_network import LSTMNetwork
+from datasets.timeseries_dataset import TimeSeriesData
 
-def load_model(model_path, input_size, hidden_size, output_size):
-    model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps=10, step_size=0.01, solver='RungeKutta', adaptive=True, use_embedding=False)
+def load_model(model_type, input_size, hidden_size, output_size):
+    model_path = f"models/model_{model_type}_timeseries.pt"
+    
+    if model_type == 'ltc':
+        model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps=10, step_size=0.01, solver='RungeKutta', adaptive=True, use_embedding=False)
+    elif model_type == 'gru':
+        model = GRUNetwork(input_size, hidden_size, output_size, num_layers=1, use_embedding=False)
+    elif model_type == 'lstm':
+        model = LSTMNetwork(input_size, hidden_size, output_size, num_layers=1, use_embedding=False)
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
+    
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -17,22 +30,20 @@ def predict_next_steps(model, initial_sequence, num_steps=50):
     for _ in range(num_steps):
         with torch.no_grad():
             output = model(input_sequence)
-        next_step = output[0, -1, :20].numpy()  # Only use the stock returns, not sentiment
+        next_step = output[0, -1, :].numpy()
         predictions.append(next_step)
         input_sequence = torch.cat([input_sequence[:, 1:], torch.tensor(next_step).unsqueeze(0).unsqueeze(0)], dim=1)
 
     return np.array(predictions)
 
-if __name__ == "__main__":
-    model_path = "models/model_ltc_timeseries.pt"
+def main(args):
     dataset = TimeSeriesData()
     
-    model = load_model(model_path, dataset.input_size, hidden_size=32, output_size=dataset.output_size)
+    model = load_model(args.model_type, dataset.input_size, args.hidden_size, dataset.output_size)
     
-    # Use the last sequence from the dataset as the initial sequence
-    initial_sequence = dataset.data[-1]
+    initial_sequence = dataset.data[-args.sequence_length:]
     
-    predictions = predict_next_steps(model, initial_sequence)
+    predictions = predict_next_steps(model, initial_sequence, args.num_steps)
     
     # Plot the predictions
     plt.figure(figsize=(12, 6))
@@ -46,3 +57,13 @@ if __name__ == "__main__":
     plt.close()
     
     print(f"Predictions plot saved as 'timeseries_predictions.png'")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Time Series Inference")
+    parser.add_argument("--model_type", choices=['ltc', 'gru', 'lstm'], required=True, help="Type of the model")
+    parser.add_argument("--hidden_size", type=int, default=32, help="Hidden size of the network")
+    parser.add_argument("--sequence_length", type=int, default=50, help="Length of input sequence")
+    parser.add_argument("--num_steps", type=int, default=50, help="Number of steps to predict")
+    args = parser.parse_args()
+    
+    main(args)
