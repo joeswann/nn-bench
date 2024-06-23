@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from models.gru_network import GRUNetwork
 from models.lstm_network import LSTMNetwork
 from models.ltc_network import LiquidTimeConstantNetwork
-from datasets.timeseries_dataset import TimeSeriesData
+from data.timeseries_dataset import TimeSeriesData
 
 def load_config(config_path):
     with open(config_path, 'r') as file:

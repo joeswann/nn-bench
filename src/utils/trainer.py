@@ -23,9 +23,10 @@ class Trainer:
                 # Forward pass
                 outputs = self.model(input_data)
 
-                # Reshape output and target to match
-                outputs = outputs.view(-1)
-                target_data = target_data.view(-1)
+                # Print shapes for debugging
+                print(f"Input shape: {input_data.shape}")
+                print(f"Target shape: {target_data.shape}")
+                print(f"Output shape: {outputs.shape}")
 
                 # Compute the loss
                 loss = self.criterion(outputs, target_data)
@@ -35,6 +36,11 @@ class Trainer:
                     print(f"NaN loss detected. Input: {input_data}, Target: {target_data}")
                     print(f"Model output: {outputs}")
                     continue
+
+                # Print shapes for debugging
+                print(f"Input shape: {input_data.shape}")
+                print(f"Target shape: {target_data.shape}")
+                print(f"Output shape: {outputs.shape}")
 
                 # Backward pass and optimization
                 self.optimizer.zero_grad()

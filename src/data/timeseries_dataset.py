@@ -78,7 +78,7 @@ class TimeSeriesData:
         return self.dataset, self.input_size, self.output_size
 
     def get_criterion(self):
-        return nn.MSELoss()
+        return nn.MSELoss(reduction='mean')
 
     def get_hyperparams(self):
         return {

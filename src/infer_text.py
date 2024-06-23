@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 from models.ltc_network import LiquidTimeConstantNetwork
 from models.gru_network import GRUNetwork
 from models.lstm_network import LSTMNetwork
-from datasets.text_dataset import TextDataset
+from data.text_dataset import TextDataset
 
 def load_model(model_type, input_size, hidden_size, output_size):
     model_path = f"models/model_{model_type}_text.pt"

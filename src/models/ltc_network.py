@@ -49,7 +49,7 @@ class LiquidTimeConstantNetwork(nn.Module):
             nn.init.xavier_uniform_(self.adaptive_weights.weight)
 
     def forward(self, input_sequence):
-        batch_size, seq_length, _ = input_sequence.size()
+        batch_size, seq_length, input_dim = input_sequence.size()
         
         if self.use_embedding:
             input_embeddings = self.embedding(input_sequence.long())
@@ -62,9 +62,17 @@ class LiquidTimeConstantNetwork(nn.Module):
         for t in range(seq_length):
             input_t = input_embeddings[:, t]
             hidden_state = self.fused_solver(hidden_state, input_t)
-            outputs.append(self.output_layer(hidden_state))
+            output = self.output_layer(hidden_state)
+            outputs.append(output.unsqueeze(1))
 
-        return torch.stack(outputs, dim=1)
+        # Concatenate outputs along the second dimension (seq_length)
+        outputs = torch.cat(outputs, dim=1)
+        
+        # Ensure the output has the correct shape [batch_size, seq_length, output_size]
+        if outputs.shape[-1] != self.output_size:
+            outputs = outputs.repeat(1, 1, self.output_size)
+
+        return outputs
 
     def ltc_ode(self, hidden_state, input_t):
         S = input_t + self.recurrent_weights(hidden_state)

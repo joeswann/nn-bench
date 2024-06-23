@@ -6,7 +6,9 @@ import argparse
 from models.gru_network import GRUNetwork
 from models.lstm_network import LSTMNetwork
 from models.ltc_network import LiquidTimeConstantNetwork, ODESolver
-from datasets.timeseries_dataset import TimeSeriesData
+from data.timeseries_dataset import TimeSeriesData
+from data.text_dataset import TextDataset
+from data.toy_dataset import ToyData
 import yaml
 
 def load_config(config_path):
@@ -93,8 +95,8 @@ def test_model(model, dataset, device='cpu'):
             targets = batch['target'].to(device)
             outputs = model(inputs)
 
-            outputs = outputs.view(-1)
-            targets = targets.view(-1)
+            # Ensure outputs and targets have the same shape
+            outputs = outputs.view(targets.shape)
 
             loss = criterion(outputs, targets)
             total_loss += loss.item()

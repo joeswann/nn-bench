@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from models.ltc_network import LiquidTimeConstantNetwork
 from models.gru_network import GRUNetwork
 from models.lstm_network import LSTMNetwork
-from datasets.timeseries_dataset import TimeSeriesData
+from data.timeseries_dataset import TimeSeriesData
 
 def load_model(model_type, input_size, hidden_size, output_size):
     model_path = f"models/model_{model_type}_timeseries.pt"

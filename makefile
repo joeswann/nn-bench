@@ -23,7 +23,7 @@ run:
 # Clean up generated files
 clean:
 	rm -rf src/__pycache__
-	rm -rf src/datasets/__pycache__
+	rm -rf src/data/__pycache__
 	rm -rf src/models/__pycache__
 	rm -rf src/utils/__pycache__
 	rm -f models/*.pt
