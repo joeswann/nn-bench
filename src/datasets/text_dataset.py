@@ -4,17 +4,18 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 
 class TextDataset:
-    def __init__(self):
+    def __init__(self, config):
+        self.config = config
         self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         self.dataset = self.prepare_data()
         self.input_size = len(self.tokenizer.vocab)
         self.output_size = len(self.tokenizer.vocab)
 
     def prepare_data(self):
-        dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
+        dataset = load_dataset(self.config['type'], self.config['name'], split=self.config['split'])
 
         def tokenize(examples):
-            return self.tokenizer(examples["text"], padding="max_length", truncation=True, max_length=128)
+            return self.tokenizer(examples["text"], padding="max_length", truncation=True, max_length=self.config['max_length'])
 
         tokenized_dataset = dataset.map(tokenize, batched=True, num_proc=4, remove_columns=["text"])
         tokenized_dataset.set_format(type='torch', columns=['input_ids'])
@@ -22,14 +23,6 @@ class TextDataset:
 
     def get_data(self):
         return self.dataset, self.input_size, self.output_size
-
-    def get_hyperparams(self):
-        return {
-            'steps': 10,
-            'step_size': 0.005,
-            'solver': 'RungeKutta',
-            'adaptive': True
-        }
 
     def get_criterion(self):
         return nn.CrossEntropyLoss()

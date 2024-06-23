@@ -6,64 +6,40 @@ import argparse
 from models.gru_network import GRUNetwork
 from models.lstm_network import LSTMNetwork
 from models.ltc_network import LiquidTimeConstantNetwork, ODESolver
+from datasets.timeseries_dataset import TimeSeriesData
+import yaml
+
+def load_config(config_path):
+    with open(config_path, 'r') as file:
+        return yaml.safe_load(file)
 
 def load_data(dataset):
     return dataset.get_data()
 
-def create_model(input_size, hidden_size, output_size, hyperparams, use_embedding, network):
+def create_model(input_size, hidden_size, output_size, config, use_embedding, network):
     if network == 'ltc':
-        steps = hyperparams['steps']
-        step_size = hyperparams['step_size']
-        solver = hyperparams['solver']
-        adaptive = hyperparams['adaptive']
+        steps = config['ltc']['steps']
+        step_size = config['ltc']['step_size']
+        solver = config['ltc']['solver']
+        adaptive = config['ltc']['adaptive']
         model = LiquidTimeConstantNetwork(input_size, hidden_size, output_size, steps, step_size, solver, adaptive, use_embedding)
     elif network == 'gru':
-        num_layers = hyperparams['num_layers']
+        num_layers = config['rnn']['num_layers']
         model = GRUNetwork(input_size, hidden_size, output_size, num_layers, use_embedding)
     elif network == 'lstm':
-        num_layers = hyperparams['num_layers']
+        num_layers = config['rnn']['num_layers']
         model = LSTMNetwork(input_size, hidden_size, output_size, num_layers, use_embedding)
     else:
         raise ValueError(f"Unknown network architecture: {network}")
     return model
 
-def get_hyperparams(dataset, network):
-    default_hyperparams = {}
-    
-    if network == 'ltc':
-        default_hyperparams = {
-            'steps': 5,
-            'step_size': 0.01,
-            'solver': 'SemiImplicit',
-            'adaptive': True
-        }
-    elif network in ['gru', 'lstm']:
-        default_hyperparams = {
-            'num_layers': 1
-        }
-    
-    if hasattr(dataset, 'get_hyperparams'):
-        dataset_hyperparams = dataset.get_hyperparams()
-        default_hyperparams.update(dataset_hyperparams)
-    
-    return default_hyperparams
-
-def create_trainer(model, dataloader, criterion, optimizer, device, num_epochs, gradient_clip):
-    return Trainer(model, dataloader, criterion, optimizer, device, num_epochs, gradient_clip)
-
-def train_model(args):
-    if args.dataset == "text":
-        from datasets.text_dataset import TextDataset
-        dataset = TextDataset()
-        use_embedding = True
-    elif args.dataset == "timeseries":
-        from datasets.timeseries_dataset import TimeSeriesData
-        dataset = TimeSeriesData()
-        use_embedding = False
+def train_model(args, config):
+    if args.dataset == "timeseries":
+        dataset = TimeSeriesData(config['dataset']['timeseries'])
+    elif args.dataset == "text":
+        dataset = TextDataset(config['dataset']['text'])
     elif args.dataset == "toy":
-        from datasets.toy_dataset import ToyData
-        dataset = ToyData()
-        use_embedding = True
+        dataset = ToyData(config['dataset']['toy'])
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
 
@@ -75,16 +51,17 @@ def train_model(args):
         input_size = dataset.input_size
         output_size = dataset.output_size
     
-    dataloader = DataLoader(data, batch_size=32, shuffle=True)
+    dataloader = DataLoader(data, batch_size=config['train']['batch_size'], shuffle=True)
     
-    hyperparams = get_hyperparams(dataset, args.network)
-    model = create_model(input_size, args.hidden_size, output_size, hyperparams, use_embedding, args.network)
+    model = create_model(input_size, config['model']['hidden_size'], output_size, config, use_embedding=False, network=args.network)
     
     criterion = dataset.get_criterion()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)  # Reduced learning rate
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['model']['learning_rate'])
     
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    trainer = create_trainer(model, dataloader, criterion, optimizer, device, args.num_epochs, args.gradient_clip)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    
+    trainer = Trainer(model, dataloader, criterion, optimizer, device, config['model']['num_epochs'], config['model']['gradient_clip'])
     
     print(f"Model architecture:\n{model}")
     print(f"Optimizer: {optimizer}")
@@ -116,7 +93,6 @@ def test_model(model, dataset, device='cpu'):
             targets = batch['target'].to(device)
             outputs = model(inputs)
 
-            # Reshape the tensors to match sizes
             outputs = outputs.view(-1, outputs.size(-1))
             targets = targets.view(-1, targets.size(-1))
 
@@ -131,11 +107,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Network")
     parser.add_argument("--dataset", choices=["text", "timeseries", "toy"], required=True, help="Dataset to use")
     parser.add_argument("--network", choices=["ltc", "gru", "lstm"], default="ltc", help="Network architecture to use")
-    parser.add_argument("--hidden_size", type=int, default=32, help="Hidden size of the network")
-    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs")
-    parser.add_argument("--gradient_clip", type=float, default=1.0, help="Gradient clipping value")
     parser.add_argument("--save_path", required=True, help="Path to save the trained model")
+    parser.add_argument("--config", default="config.yml", help="Path to the configuration file")
     args = parser.parse_args()
 
-    model, dataset = train_model(args)
+    config = load_config(args.config)
+    model, dataset = train_model(args, config)
     test_model(model, dataset)
