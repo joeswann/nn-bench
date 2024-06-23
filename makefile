@@ -102,3 +102,7 @@ run-toy:
 	$(MAKE) run dataset=toy network=lstm
 	$(MAKE) run dataset=toy network=cnn
 	$(MAKE) run dataset=toy network=transformer
+
+# Analyze S&P 500 data
+analyze-sp500:
+	$(PYTHON) src/analyze_sp500.py
