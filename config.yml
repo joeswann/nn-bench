@@ -11,16 +11,21 @@ dataset:
     interval: "1d"
     symbols:
       [
-        "AAPL",
-        "GOOGL",
-        "MSFT",
-        "AMZN",
-        "META",
-        "NVDA",
-        "TSLA",
-        "JPM",
-        "JNJ",
-        "V",
+        "AAPL",  # Apple Inc.
+        "MSFT",  # Microsoft Corporation
+        "AMZN",  # Amazon.com Inc.
+        "NVDA",  # NVIDIA Corporation
+        "GOOGL", # Alphabet Inc. Class A
+        "META",  # Meta Platforms Inc.
+        "TSLA",  # Tesla Inc.
+        "BRK-B", # Berkshire Hathaway Inc. Class B
+        "UNH",   # UnitedHealth Group Incorporated
+        "JNJ",   # Johnson & Johnson
+        "JPM",   # JPMorgan Chase & Co.
+        "XOM",   # Exxon Mobil Corporation
+        "V",     # Visa Inc.
+        "PG",    # Procter & Gamble Company
+        "MA"     # Mastercard Incorporated
       ]
   toy:
     num_samples: 10000
@@ -47,6 +52,17 @@ ltc:
 rnn:
   num_layers: 4
 
+# CNN specific settings
+cnn:
+  num_layers: 3
+  kernel_size: 3
+
+# Transformer specific settings
+transformer:
+  num_layers: 2
+  num_heads: 4
+  dropout: 0.1
+
 # Training settings
 train:
   batch_size: 64
@@ -68,3 +84,4 @@ paths:
 logging:
   level: INFO
   format: "%(asctime)s - %(levelname)s - %(message)s"
+  shape_logging: false

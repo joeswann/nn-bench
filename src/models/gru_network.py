@@ -26,4 +26,4 @@ class GRUNetwork(nn.Module):
 
         output, _ = self.gru(input_sequence)
         output = self.output_layer(output)
-        return output
+        return output.view(output.size(0), output.size(1), self.input_size)

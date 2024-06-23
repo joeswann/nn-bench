@@ -68,9 +68,8 @@ class LiquidTimeConstantNetwork(nn.Module):
         # Concatenate outputs along the second dimension (seq_length)
         outputs = torch.cat(outputs, dim=1)
         
-        # Ensure the output has the correct shape [batch_size, seq_length, output_size]
-        if outputs.shape[-1] != self.output_size:
-            outputs = outputs.repeat(1, 1, self.output_size)
+        # Ensure the output shape matches the input shape
+        outputs = outputs.view(batch_size, seq_length, self.output_size)
 
         return outputs
 

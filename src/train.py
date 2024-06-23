@@ -6,6 +6,8 @@ import argparse
 from models.gru_network import GRUNetwork
 from models.lstm_network import LSTMNetwork
 from models.ltc_network import LiquidTimeConstantNetwork, ODESolver
+from models.cnn_network import CNNNetwork
+from models.transformer_network import TransformerNetwork
 from data.timeseries_dataset import TimeSeriesData
 from data.text_dataset import TextDataset
 from data.toy_dataset import ToyData
@@ -31,9 +33,22 @@ def create_model(input_size, hidden_size, output_size, config, use_embedding, ne
     elif network == 'lstm':
         num_layers = config['rnn']['num_layers']
         model = LSTMNetwork(input_size, hidden_size, output_size, num_layers, use_embedding)
+    elif network == 'cnn':
+        num_layers = config['cnn']['num_layers']
+        kernel_size = config['cnn']['kernel_size']
+        model = CNNNetwork(input_size, hidden_size, output_size, num_layers, kernel_size)
+    elif network == 'transformer':
+        num_layers = config['transformer']['num_layers']
+        num_heads = config['transformer']['num_heads']
+        dropout = config['transformer']['dropout']
+        model = TransformerNetwork(input_size, hidden_size, output_size, num_layers, num_heads, dropout)
     else:
         raise ValueError(f"Unknown network architecture: {network}")
     return model
+
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def train_model(args, config):
     if args.dataset == "timeseries":
@@ -53,6 +68,8 @@ def train_model(args, config):
         input_size = dataset.input_size
         output_size = dataset.output_size
     
+    logging.info(f"Input size: {input_size}, Output size: {output_size}")
+    
     dataloader = DataLoader(data, batch_size=config['train']['batch_size'], shuffle=True)
     
     model = create_model(input_size, config['model']['hidden_size'], output_size, config, use_embedding=False, network=args.network)
@@ -65,15 +82,15 @@ def train_model(args, config):
     
     trainer = Trainer(model, dataloader, criterion, optimizer, device, config['model']['num_epochs'], config['model']['gradient_clip'])
     
-    print(f"Model architecture:\n{model}")
-    print(f"Optimizer: {optimizer}")
-    print(f"Criterion: {criterion}")
-    print(f"Device: {device}")
+    logging.info(f"Model architecture:\n{model}")
+    logging.info(f"Optimizer: {optimizer}")
+    logging.info(f"Criterion: {criterion}")
+    logging.info(f"Device: {device}")
     
     trainer.train()
     
     torch.save(model.state_dict(), args.save_path)
-    print(f"Model saved to {args.save_path}")
+    logging.info(f"Model saved to {args.save_path}")
     
     return model, dataset
 
@@ -95,9 +112,6 @@ def test_model(model, dataset, device='cpu'):
             targets = batch['target'].to(device)
             outputs = model(inputs)
 
-            # Ensure outputs and targets have the same shape
-            outputs = outputs.view(targets.shape)
-
             loss = criterion(outputs, targets)
             total_loss += loss.item()
     
@@ -108,7 +122,7 @@ def test_model(model, dataset, device='cpu'):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Network")
     parser.add_argument("--dataset", choices=["text", "timeseries", "toy"], required=True, help="Dataset to use")
-    parser.add_argument("--network", choices=["ltc", "gru", "lstm"], default="ltc", help="Network architecture to use")
+    parser.add_argument("--network", choices=["ltc", "gru", "lstm", "cnn", "transformer"], default="ltc", help="Network architecture to use")
     parser.add_argument("--save_path", required=True, help="Path to save the trained model")
     parser.add_argument("--config", default="config.yml", help="Path to the configuration file")
     args = parser.parse_args()

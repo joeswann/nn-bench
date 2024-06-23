@@ -62,16 +62,22 @@ train-text: create-models-dir
 	$(MAKE) train dataset=text network=ltc
 	$(MAKE) train dataset=text network=gru
 	$(MAKE) train dataset=text network=lstm
+	$(MAKE) train dataset=text network=cnn
+	$(MAKE) train dataset=text network=transformer
 
 train-timeseries: create-models-dir
 	$(MAKE) train dataset=timeseries network=ltc
 	$(MAKE) train dataset=timeseries network=gru
 	$(MAKE) train dataset=timeseries network=lstm
+	$(MAKE) train dataset=timeseries network=cnn
+	$(MAKE) train dataset=timeseries network=transformer
 
 train-toy: create-models-dir
 	$(MAKE) train dataset=toy network=ltc
 	$(MAKE) train dataset=toy network=gru
 	$(MAKE) train dataset=toy network=lstm
+	$(MAKE) train dataset=toy network=cnn
+	$(MAKE) train dataset=toy network=transformer
 
 # Define targets for running inference on all networks for all datasets
 run-all: run-text run-timeseries run-toy
@@ -80,13 +86,19 @@ run-text:
 	$(MAKE) run dataset=text network=ltc
 	$(MAKE) run dataset=text network=gru
 	$(MAKE) run dataset=text network=lstm
+	$(MAKE) run dataset=text network=cnn
+	$(MAKE) run dataset=text network=transformer
 
 run-timeseries:
 	$(MAKE) run dataset=timeseries network=ltc
 	$(MAKE) run dataset=timeseries network=gru
 	$(MAKE) run dataset=timeseries network=lstm
+	$(MAKE) run dataset=timeseries network=cnn
+	$(MAKE) run dataset=timeseries network=transformer
 
 run-toy:
 	$(MAKE) run dataset=toy network=ltc
 	$(MAKE) run dataset=toy network=gru
 	$(MAKE) run dataset=toy network=lstm
+	$(MAKE) run dataset=toy network=cnn
+	$(MAKE) run dataset=toy network=transformer
