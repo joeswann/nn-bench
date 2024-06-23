@@ -56,7 +56,7 @@ def train_model(args, config):
     model = create_model(input_size, config['model']['hidden_size'], output_size, config, use_embedding=False, network=args.network)
     
     criterion = dataset.get_criterion()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['model']['learning_rate'])
+    optimizer = torch.optim.SGD(model.parameters(), lr=config['model']['learning_rate'], weight_decay=config['model']['weight_decay'], momentum=config['model']['momentum'])
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
@@ -93,8 +93,8 @@ def test_model(model, dataset, device='cpu'):
             targets = batch['target'].to(device)
             outputs = model(inputs)
 
-            outputs = outputs.view(-1, outputs.size(-1))
-            targets = targets.view(-1, targets.size(-1))
+            outputs = outputs.view(-1)
+            targets = targets.view(-1)
 
             loss = criterion(outputs, targets)
             total_loss += loss.item()

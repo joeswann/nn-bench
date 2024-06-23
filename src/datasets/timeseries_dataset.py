@@ -64,7 +64,7 @@ class TimeSeriesData:
         final_data = stock_data.loc[:, (slice(None), features)]
         
         # Handle NaN values
-        final_data = final_data.fillna(method='ffill').fillna(method='bfill')
+        final_data = final_data.ffill().bfill()
         
         scaler = MinMaxScaler()
         normalized_data = scaler.fit_transform(final_data)

@@ -33,23 +33,27 @@ clean:
 create-models-dir:
 	mkdir -p models
 
+# Optimize hyperparameters
+optimize:
+	$(PYTHON) src/optimize.py --dataset $(dataset) --network $(network) --config config.yml
+
 # Display help information
 help:
 	@echo "Available targets:"
-	@echo "  install           - Install the required dependencies"
+	@echo "  install            - Install the required dependencies"
 	@echo "  download-nltk-data - Download required NLTK data"
 	@echo "  train              - Train the model"
 	@echo "  run                - Run inference on the model"
 	@echo "  clean              - Clean up generated files"
 	@echo "  create-models-dir  - Create the models directory"
-	@echo "  help               - Display this help information"
+	@echo "  optimize           - Optimize hyperparameters"
 	@echo ""
 	@echo "Available options:"
 	@echo "  dataset            - Dataset to use (text, timeseries, toy)"
 	@echo "  network            - Network architecture to use (ltc, gru, lstm)"
 
 # Ensure the models directory exists before training or running
-train run: | create-models-dir
+train run optimize: | create-models-dir
 
 # Define targets for training all networks on all datasets
 train-all: train-text train-timeseries train-toy

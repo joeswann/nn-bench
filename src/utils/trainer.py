@@ -23,8 +23,12 @@ class Trainer:
                 # Forward pass
                 outputs = self.model(input_data)
 
+                # Reshape output and target to match
+                outputs = outputs.view(-1)
+                target_data = target_data.view(-1)
+
                 # Compute the loss
-                loss = self.criterion(outputs.view(-1, outputs.size(-1)), target_data.view(-1))
+                loss = self.criterion(outputs, target_data)
 
                 # Check for NaN loss
                 if torch.isnan(loss):

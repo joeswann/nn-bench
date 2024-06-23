@@ -32,7 +32,9 @@ model:
   hidden_size: 128
   num_epochs: 40
   gradient_clip: 1.0
-  learning_rate: 0.0001
+  learning_rate: 0.001
+  weight_decay: 0.0
+  momentum: 0.9
 
 # LTC specific settings
 ltc:

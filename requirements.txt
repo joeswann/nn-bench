@@ -6,3 +6,5 @@ pandas
 yfinance
 nltk
 scikit-learn
+prophet
+optuna
