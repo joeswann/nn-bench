@@ -14,11 +14,11 @@ download-nltk-data:
 
 # Train the model
 train:
-	$(PYTHON) src/train.py --dataset $(dataset) --network $(network) --save_path models/model_$(network)_$(dataset).pt --config config.yml
+	$(PYTHON) bin/train.py --dataset $(dataset) --network $(network) --save_path models/model_$(network)_$(dataset).pt --config config.yml
 
 # Run inference on the model
 run:
-	$(PYTHON) src/infer_$(dataset).py --model_type $(network) --config config.yml
+	$(PYTHON) bin/infer_$(dataset).py --model_type $(network) --config config.yml
 
 # Clean up generated files
 clean:
